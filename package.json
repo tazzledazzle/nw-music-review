@@ -6,22 +6,38 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:ui": "vitest --ui",
+    "migrate": "node-pg-migrate -f migrations/config.js",
+    "migrate:up": "node-pg-migrate -f migrations/config.js up",
+    "migrate:down": "node-pg-migrate -f migrations/config.js down",
+    "migrate:create": "node-pg-migrate -f migrations/config.js create"
   },
   "dependencies": {
+    "@types/pg": "^8.15.4",
+    "dotenv": "^17.2.0",
+    "next": "15.4.1",
+    "pg": "^8.16.3",
     "react": "19.1.0",
-    "react-dom": "19.1.0",
-    "next": "15.4.1"
+    "react-dom": "19.1.0"
   },
   "devDependencies": {
-    "typescript": "^5",
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@tailwindcss/postcss": "^4",
-    "tailwindcss": "^4",
+    "@vitest/ui": "^3.2.4",
     "eslint": "^9",
     "eslint-config-next": "15.4.1",
-    "@eslint/eslintrc": "^3"
+    "jsdom": "^26.1.0",
+    "node-pg-migrate": "^8.0.3",
+    "tailwindcss": "^4",
+    "typescript": "^5",
+    "vitest": "^3.2.4"
   }
 }

@@ -1,36 +1,88 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Venue Explorer Platform
+
+A web application for discovering music venues, shows, and artists across Washington, Oregon, Idaho, and British Columbia.
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- Node.js 18+ 
+- PostgreSQL 12+ with PostGIS extension
+- npm or yarn
+
+### Database Setup
+
+1. Install PostgreSQL and PostGIS extension:
+   ```bash
+   # On macOS with Homebrew
+   brew install postgresql postgis
+   
+   # On Ubuntu/Debian
+   sudo apt-get install postgresql postgresql-contrib postgis
+   ```
+
+2. Create the database:
+   ```bash
+   createdb venue_explorer
+   ```
+
+3. Enable PostGIS extension (this will be done automatically by migrations):
+   ```sql
+   CREATE EXTENSION postgis;
+   ```
+
+### Installation
+
+1. Clone the repository and install dependencies:
+   ```bash
+   cd venue-explorer
+   npm install
+   ```
+
+2. Copy the environment file and configure your database:
+   ```bash
+   cp .env.local.example .env.local
+   ```
+   
+   Update the database connection string in `.env.local`:
+   ```
+   DATABASE_URL=postgresql://username:password@localhost:5432/venue_explorer
+   ```
+
+3. Run database migrations:
+   ```bash
+   npm run migrate:up
+   ```
+
+4. Start the development server:
+   ```bash
+   npm run dev
+   ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Database Migrations
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- Create a new migration: `npm run migrate:create <migration-name>`
+- Run migrations: `npm run migrate:up`
+- Rollback migrations: `npm run migrate:down`
+- Check migration status: `npm run migrate`
 
-## Learn More
+## Project Structure
 
-To learn more about Next.js, take a look at the following resources:
+```
+venue-explorer/
+├── src/
+│   ├── app/          # Next.js app router pages
+│   └── lib/          # Utility functions and database config
+├── migrations/       # Database migration files
+├── public/          # Static assets
+└── ...
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Tech Stack
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Frontend**: Next.js 15, React 19, TypeScript, TailwindCSS
+- **Database**: PostgreSQL with PostGIS extension
+- **Migrations**: node-pg-migrate
+- **Styling**: TailwindCSS
