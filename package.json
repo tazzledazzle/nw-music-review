@@ -21,8 +21,10 @@
   },
   "dependencies": {
     "@elastic/elasticsearch": "^9.0.3",
+    "@heroicons/react": "^2.2.0",
     "@types/pg": "^8.15.4",
     "dotenv": "^17.2.0",
+    "lodash": "^4.17.21",
     "next": "15.4.1",
     "pg": "^8.16.3",
     "react": "19.1.0",
@@ -34,6 +36,7 @@
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
+    "@types/lodash": "^4.17.20",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
