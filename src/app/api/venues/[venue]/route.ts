@@ -1,5 +1,8 @@
 import { VenueRepository } from '@/lib/repositories/venue-repository';
 import { NextRequest, NextResponse } from 'next/server';
+import { ErrorHandler, AppError } from '@/lib/utils/error-handler';
+import { PerformanceMonitor, RequestTracker } from '@/lib/utils/monitoring';
+import { randomUUID } from 'crypto';
 
 /**
  * GET /api/venues/{venue}
@@ -9,48 +12,54 @@ export async function GET(
     request: NextRequest,
     { params }: { params: { venue: string } }
 ) {
+    const requestId = randomUUID();
+    const startTime = Date.now();
+    
+    // Start request tracking
+    RequestTracker.startRequest(requestId, `/api/venues/${params.venue}`, 'GET');
+
     try {
         const { venue } = params;
 
         if (!venue) {
-            return NextResponse.json(
-                { error: "Venue parameter is required" },
-                { status: 400 }
-            );
+            throw ErrorHandler.validationError("Venue parameter is required");
         }
 
         const venueId = parseInt(venue);
         
         if (isNaN(venueId)) {
-            return NextResponse.json(
-                { error: "Venue ID must be a valid number" },
-                { status: 400 }
-            );
+            throw ErrorHandler.validationError("Venue ID must be a valid number");
         }
 
         // Get venue with city information
         const venueRepo = new VenueRepository();
+        const dbStartTime = Date.now();
         const venueData = await venueRepo.findByIdWithCity(venueId);
+        const dbDuration = Date.now() - dbStartTime;
+
+        // Record database performance
+        PerformanceMonitor.recordDatabaseQuery('SELECT', 'venues', dbDuration, !!venueData);
 
         if (!venueData) {
-            return NextResponse.json(
-                { error: `No venue found with ID: ${venueId}` },
-                { status: 404 }
-            );
+            throw ErrorHandler.notFound('Venue', venueId);
         }
+
+        // Record successful response metrics
+        const responseTime = Date.now() - startTime;
+        PerformanceMonitor.recordApiResponseTime(`/api/venues/${venue}`, 'GET', 200, responseTime);
+        RequestTracker.endRequest(requestId, 200);
 
         return NextResponse.json({
             venue: venueData
         });
 
     } catch (error) {
-        console.error(`Error fetching venue ${params.venue}:`, error);
-        return NextResponse.json(
-            {
-                error: 'Failed to fetch venue',
-                details: error instanceof Error ? error.message : 'Unknown error'
-            },
-            { status: 500 }
-        );
+        // Record error metrics
+        const responseTime = Date.now() - startTime;
+        const statusCode = error instanceof AppError ? error.statusCode : 500;
+        PerformanceMonitor.recordApiResponseTime(`/api/venues/${params.venue}`, 'GET', statusCode, responseTime);
+        RequestTracker.endRequest(requestId, statusCode);
+
+        return ErrorHandler.handleError(error, requestId);
     }
 }

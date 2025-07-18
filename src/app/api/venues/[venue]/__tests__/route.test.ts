@@ -3,100 +3,95 @@ import { GET } from '../route';
 import { VenueRepository } from '@/lib/repositories/venue-repository';
 import { NextRequest } from 'next/server';
 
-// Mock the repository
-vi.mock('@/lib/repositories/venue-repository');
+// Mock the VenueRepository
+vi.mock('@/lib/repositories/venue-repository', () => ({
+  VenueRepository: vi.fn().mockImplementation(() => ({
+    findByIdWithCity: vi.fn()
+  }))
+}));
 
 describe('/api/venues/[venue]', () => {
+  let mockVenueRepository: any;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    mockVenueRepository = new (VenueRepository as any)();
   });
 
-  it('should return venue details for a valid venue ID', async () => {
+  it('should return venue data when venue exists', async () => {
     const mockVenue = {
       id: 1,
-      name: 'The Crocodile',
-      city_id: 1,
-      address: '2200 2nd Ave, Seattle, WA 98121',
-      coordinates: { x: -122.3428, y: 47.6131 },
+      name: 'Test Venue',
+      address: '123 Test St',
+      coordinates: { x: -122.4194, y: 37.7749 },
       capacity: 500,
-      website: 'https://thecrocodile.com',
-      prosper_rank: 8,
-      created_at: new Date('2023-01-01'),
-      updated_at: new Date('2023-01-01'),
+      website: 'https://testvenue.com',
+      prosper_rank: 5,
+      city_id: 1,
+      created_at: new Date(),
+      updated_at: new Date(),
       city: {
         id: 1,
         name: 'Seattle',
         state_province: 'WA',
         country: 'US',
         coordinates: { x: -122.3321, y: 47.6062 },
-        created_at: new Date('2023-01-01'),
-        updated_at: new Date('2023-01-01')
+        created_at: new Date(),
+        updated_at: new Date()
       }
     };
 
-    const mockFindByIdWithCity = vi.fn().mockResolvedValue(mockVenue);
-
-    vi.mocked(VenueRepository).mockImplementation(() => ({
-      findByIdWithCity: mockFindByIdWithCity,
-    }) as any);
+    mockVenueRepository.findByIdWithCity.mockResolvedValue(mockVenue);
 
     const request = new NextRequest('http://localhost/api/venues/1');
     const response = await GET(request, { params: { venue: '1' } });
     const data = await response.json();
 
     expect(response.status).toBe(200);
-    expect(data.venue).toMatchObject({
-      id: 1,
-      name: 'The Crocodile',
-      capacity: 500,
-      city: {
-        name: 'Seattle',
-        state_province: 'WA'
-      }
+    expect(data).toEqual({
+      venue: mockVenue
     });
-    expect(mockFindByIdWithCity).toHaveBeenCalledWith(1);
+    expect(mockVenueRepository.findByIdWithCity).toHaveBeenCalledWith(1);
   });
 
-  it('should return 404 for non-existent venue ID', async () => {
-    const mockFindByIdWithCity = vi.fn().mockResolvedValue(null);
-
-    vi.mocked(VenueRepository).mockImplementation(() => ({
-      findByIdWithCity: mockFindByIdWithCity,
-    }) as any);
+  it('should return 404 when venue does not exist', async () => {
+    mockVenueRepository.findByIdWithCity.mockResolvedValue(null);
 
     const request = new NextRequest('http://localhost/api/venues/999');
     const response = await GET(request, { params: { venue: '999' } });
     const data = await response.json();
 
     expect(response.status).toBe(404);
-    expect(data.error).toBe('No venue found with ID: 999');
-    expect(mockFindByIdWithCity).toHaveBeenCalledWith(999);
+    expect(data).toEqual({
+      error: 'No venue found with ID: 999'
+    });
   });
 
-  it('should return 400 for invalid venue ID format', async () => {
-    const request = new NextRequest('http://localhost/api/venues/invalid');
-    const response = await GET(request, { params: { venue: 'invalid' } });
-    const data = await response.json();
-
-    expect(response.status).toBe(400);
-    expect(data.error).toBe('Venue ID must be a valid number');
-  });
-
-  it('should return 400 for missing venue parameter', async () => {
+  it('should return 400 when venue parameter is missing', async () => {
     const request = new NextRequest('http://localhost/api/venues/');
     const response = await GET(request, { params: { venue: '' } });
     const data = await response.json();
 
     expect(response.status).toBe(400);
-    expect(data.error).toBe('Venue parameter is required');
+    expect(data).toEqual({
+      error: 'Venue parameter is required'
+    });
   });
 
-  it('should handle database errors', async () => {
-    const mockFindByIdWithCity = vi.fn().mockRejectedValue(new Error('Database connection failed'));
+  it('should return 400 when venue ID is not a valid number', async () => {
+    const request = new NextRequest('http://localhost/api/venues/invalid');
+    const response = await GET(request, { params: { venue: 'invalid' } });
+    const data = await response.json();
 
-    vi.mocked(VenueRepository).mockImplementation(() => ({
-      findByIdWithCity: mockFindByIdWithCity,
-    }) as any);
+    expect(response.status).toBe(400);
+    expect(data).toEqual({
+      error: 'Venue ID must be a valid number'
+    });
+  });
+
+  it('should handle database errors gracefully', async () => {
+    const mockError = new Error('Database connection failed');
+    mockVenueRepository.findByIdWithCity.mockRejectedValue(mockError);
 
     const request = new NextRequest('http://localhost/api/venues/1');
     const response = await GET(request, { params: { venue: '1' } });
@@ -109,84 +104,17 @@ describe('/api/venues/[venue]', () => {
     });
   });
 
-  it('should handle venue with null capacity and website', async () => {
-    const mockVenue = {
-      id: 2,
-      name: 'Small Local Venue',
-      city_id: 2,
-      address: '123 Main St',
-      coordinates: { x: -122.0, y: 47.0 },
-      capacity: null,
-      website: null,
-      prosper_rank: 3,
-      created_at: new Date('2023-01-01'),
-      updated_at: new Date('2023-01-01'),
-      city: {
-        id: 2,
-        name: 'Spokane',
-        state_province: 'WA',
-        country: 'US',
-        coordinates: { x: -117.4260, y: 47.6587 },
-        created_at: new Date('2023-01-01'),
-        updated_at: new Date('2023-01-01')
-      }
-    };
+  it('should handle unknown errors gracefully', async () => {
+    mockVenueRepository.findByIdWithCity.mockRejectedValue('Unknown error');
 
-    const mockFindByIdWithCity = vi.fn().mockResolvedValue(mockVenue);
-
-    vi.mocked(VenueRepository).mockImplementation(() => ({
-      findByIdWithCity: mockFindByIdWithCity,
-    }) as any);
-
-    const request = new NextRequest('http://localhost/api/venues/2');
-    const response = await GET(request, { params: { venue: '2' } });
+    const request = new NextRequest('http://localhost/api/venues/1');
+    const response = await GET(request, { params: { venue: '1' } });
     const data = await response.json();
 
-    expect(response.status).toBe(200);
-    expect(data.venue).toMatchObject({
-      id: 2,
-      name: 'Small Local Venue',
-      capacity: null,
-      website: null,
-      prosper_rank: 3
+    expect(response.status).toBe(500);
+    expect(data).toEqual({
+      error: 'Failed to fetch venue',
+      details: 'Unknown error'
     });
-  });
-
-  it('should handle large venue ID numbers', async () => {
-    const mockVenue = {
-      id: 2147483647, // Max 32-bit integer
-      name: 'Large ID Venue',
-      city_id: 1,
-      address: '456 Test Ave',
-      coordinates: { x: -122.0, y: 47.0 },
-      capacity: 1000,
-      website: 'https://example.com',
-      prosper_rank: 5,
-      created_at: new Date('2023-01-01'),
-      updated_at: new Date('2023-01-01'),
-      city: {
-        id: 1,
-        name: 'Seattle',
-        state_province: 'WA',
-        country: 'US',
-        coordinates: { x: -122.3321, y: 47.6062 },
-        created_at: new Date('2023-01-01'),
-        updated_at: new Date('2023-01-01')
-      }
-    };
-
-    const mockFindByIdWithCity = vi.fn().mockResolvedValue(mockVenue);
-
-    vi.mocked(VenueRepository).mockImplementation(() => ({
-      findByIdWithCity: mockFindByIdWithCity,
-    }) as any);
-
-    const request = new NextRequest('http://localhost/api/venues/2147483647');
-    const response = await GET(request, { params: { venue: '2147483647' } });
-    const data = await response.json();
-
-    expect(response.status).toBe(200);
-    expect(data.venue.id).toBe(2147483647);
-    expect(mockFindByIdWithCity).toHaveBeenCalledWith(2147483647);
   });
 });

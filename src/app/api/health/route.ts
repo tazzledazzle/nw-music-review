@@ -1,22 +1,34 @@
 import { NextResponse } from 'next/server';
-import { testConnection } from '@/lib/db';
+import { ErrorHandler } from '@/lib/utils/error-handler';
+import { HealthMonitor, PerformanceMonitor } from '@/lib/utils/monitoring';
+import { randomUUID } from 'crypto';
 
 export async function GET() {
+  const requestId = randomUUID();
+  const startTime = Date.now();
+
   try {
-    const dbTest = await testConnection();
-    
+    // Get comprehensive system health
+    const systemHealth = await HealthMonitor.getSystemHealth();
+    const responseTime = Date.now() - startTime;
+
+    // Record performance metrics
+    PerformanceMonitor.recordApiResponseTime('/api/health', 'GET', 200, responseTime);
+
     return NextResponse.json({
-      status: 'ok',
+      status: systemHealth.status === 'healthy' ? 'ok' : systemHealth.status,
       timestamp: new Date().toISOString(),
-      database: dbTest
+      requestId,
+      health: systemHealth,
+      performance: {
+        responseTime,
+        averageResponseTime: PerformanceMonitor.getAverageResponseTime('/api/health')
+      }
     });
   } catch (error) {
-    return NextResponse.json(
-      {
-        status: 'error',
-        error: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
-    );
+    const responseTime = Date.now() - startTime;
+    PerformanceMonitor.recordApiResponseTime('/api/health', 'GET', 500, responseTime);
+    
+    return ErrorHandler.handleError(error, requestId);
   }
 }

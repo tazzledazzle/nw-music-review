@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { elasticsearchService } from '@/lib/search/elasticsearch';
 import { z } from 'zod';
+import { ErrorHandler, AppError, ErrorType } from '@/lib/utils/error-handler';
+import { PerformanceMonitor, RequestTracker } from '@/lib/utils/monitoring';
+import { randomUUID } from 'crypto';
 
 // Search query parameters schema
 const searchParamsSchema = z.object({
@@ -49,6 +52,12 @@ const searchParamsSchema = z.object({
  * - sort_dir: Sort direction (asc|desc)
  */
 export async function GET(request: NextRequest) {
+  const requestId = randomUUID();
+  const startTime = Date.now();
+  
+  // Start request tracking
+  RequestTracker.startRequest(requestId, '/api/search', 'GET');
+
   try {
     // Parse and validate query parameters
     const searchParams = request.nextUrl.searchParams;
@@ -86,10 +95,7 @@ export async function GET(request: NextRequest) {
     // Check Elasticsearch health
     const isHealthy = await elasticsearchService.healthCheck();
     if (!isHealthy) {
-      return NextResponse.json(
-        { error: 'Search service is currently unavailable' },
-        { status: 503 }
-      );
+      throw ErrorHandler.externalServiceError('Elasticsearch', 'Search service is currently unavailable');
     }
 
     let results;
@@ -270,24 +276,20 @@ export async function GET(request: NextRequest) {
       }
     };
 
+    // Record successful response metrics
+    const responseTime = Date.now() - startTime;
+    PerformanceMonitor.recordApiResponseTime('/api/search', 'GET', 200, responseTime);
+    RequestTracker.endRequest(requestId, 200);
+
     return NextResponse.json(response);
 
   } catch (error) {
-    console.error('Search API error:', error);
-    
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { 
-          error: 'Invalid query parameters',
-          details: error.errors
-        },
-        { status: 400 }
-      );
-    }
+    // Record error metrics
+    const responseTime = Date.now() - startTime;
+    const statusCode = error instanceof AppError ? error.statusCode : 500;
+    PerformanceMonitor.recordApiResponseTime('/api/search', 'GET', statusCode, responseTime);
+    RequestTracker.endRequest(requestId, statusCode);
 
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return ErrorHandler.handleError(error, requestId);
   }
 }
