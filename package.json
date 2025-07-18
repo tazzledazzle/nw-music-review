@@ -22,8 +22,12 @@
   "dependencies": {
     "@elastic/elasticsearch": "^9.0.3",
     "@heroicons/react": "^2.2.0",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/pg": "^8.15.4",
+    "bcryptjs": "^3.0.2",
     "dotenv": "^17.2.0",
+    "jsonwebtoken": "^9.0.2",
     "lodash": "^4.17.21",
     "next": "15.4.1",
     "pg": "^8.16.3",

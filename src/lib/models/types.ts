@@ -9,6 +9,9 @@ export interface BaseEntity {
   updated_at: Date;
 }
 
+// User role type
+export type UserRole = 'user' | 'admin';
+
 // Geographic point interface for PostGIS coordinates
 export interface GeoPoint {
   x: number; // longitude
@@ -63,6 +66,29 @@ export interface Media extends BaseEntity {
   type: 'photo' | 'video';
   url: string;
   artist?: Artist; // Optional joined artist data
+}
+
+// User model interface
+export interface User extends BaseEntity {
+  email: string;
+  password_hash: string;
+  name: string | null;
+  role: UserRole;
+  email_verified: boolean;
+}
+
+// Session model interface
+export interface Session extends BaseEntity {
+  user_id: number;
+  token_hash: string;
+  expires_at: Date;
+}
+
+// Password reset token interface
+export interface PasswordResetToken extends BaseEntity {
+  user_id: number;
+  token_hash: string;
+  expires_at: Date;
 }
 
 // User favorite model interface
