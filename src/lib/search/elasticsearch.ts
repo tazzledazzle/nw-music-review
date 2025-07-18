@@ -384,18 +384,62 @@ export class ElasticsearchService {
    * Search across all content types
    */
   async searchAll(query: string, params: QueryParams = {}): Promise<CategorizedSearchResults> {
-    const { page = 1, limit = 10 } = params;
+    const { page = 1, limit = 10, genres = null } = params;
     const from = (page - 1) * limit;
+    
+    // Get the genre filter (either a single string or the first element of an array)
+    const genreFilter = typeof genres === 'string' ? genres : 
+                        Array.isArray(genres) && genres.length > 0 ? genres[0] : null;
 
+    // Base search query
+    const baseQuery = {
+      multi_match: {
+        query,
+        fields: ['name^2', 'title^2', 'description', 'profile_bio'],
+        type: 'best_fields',
+        fuzziness: 'AUTO'
+      }
+    };
+    
+    // Create search body with or without genre filter
     const searchBody = {
-      query: {
-        multi_match: {
-          query,
-          fields: ['name^2', 'title^2', 'description', 'profile_bio'],
-          type: 'best_fields',
-          fuzziness: 'AUTO'
-        }
-      },
+      query: genreFilter 
+        ? {
+            bool: {
+              must: [baseQuery],
+              filter: [
+                { term: { "genres": genreFilter } }
+              ]
+            }
+          }
+        : baseQuery,
+      from,
+      size: limit,
+      sort: [
+        { _score: { order: 'desc' } },
+        { created_at: { order: 'desc' } }
+      ]
+    };
+    
+    // For events, we need to use a nested query for artist genres
+    const eventSearchBody = {
+      query: genreFilter
+        ? {
+            bool: {
+              must: [baseQuery],
+              filter: [
+                {
+                  nested: {
+                    path: "artists",
+                    query: {
+                      term: { "artists.genres": genreFilter }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        : baseQuery,
       from,
       size: limit,
       sort: [
@@ -405,27 +449,36 @@ export class ElasticsearchService {
     };
 
     const [venueResults, artistResults, eventResults] = await Promise.all([
-      this.client.search({ index: INDICES.VENUES, body: searchBody }),
-      this.client.search({ index: INDICES.ARTISTS, body: searchBody }),
-      this.client.search({ index: INDICES.EVENTS, body: searchBody })
+      this.client.search({ 
+        index: INDICES.VENUES, 
+        body: searchBody 
+      }),
+      this.client.search({ 
+        index: INDICES.ARTISTS, 
+        body: searchBody 
+      }),
+      this.client.search({ 
+        index: INDICES.EVENTS, 
+        body: eventSearchBody 
+      })
     ]);
 
     return {
       venues: {
-        total: venueResults.body.hits.total.value,
-        hits: venueResults.body.hits.hits
+        total: venueResults.body?.hits?.total?.value || 0,
+        hits: venueResults.body?.hits?.hits || []
       },
       artists: {
-        total: artistResults.body.hits.total.value,
-        hits: artistResults.body.hits.hits
+        total: artistResults.body?.hits?.total?.value || 0,
+        hits: artistResults.body?.hits?.hits || []
       },
       events: {
-        total: eventResults.body.hits.total.value,
-        hits: eventResults.body.hits.hits
+        total: eventResults.body?.hits?.total?.value || 0,
+        hits: eventResults.body?.hits?.hits || []
       },
-      total: venueResults.body.hits.total.value + 
-             artistResults.body.hits.total.value + 
-             eventResults.body.hits.total.value
+      total: (venueResults.body?.hits?.total?.value || 0) + 
+             (artistResults.body?.hits?.total?.value || 0) + 
+             (eventResults.body?.hits?.total?.value || 0)
     };
   }
 
@@ -509,7 +562,7 @@ export class ElasticsearchService {
 
     const suggestions = new Set<string>();
     results.forEach(result => {
-      result.body.suggest.suggestions[0].options.forEach((option: any) => {
+      result.body.suggest.suggestions[0].options.forEach((option: unknown) => {
         suggestions.add(option.text);
       });
     });

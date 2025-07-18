@@ -18,6 +18,7 @@ export class QueryBuilder {
   private joinClauses: string[];
   private groupByClause: string | null;
   private paramCount: number;
+  private genreFilter: string | null;
 
   /**
    * Create a new QueryBuilder instance
@@ -36,6 +37,16 @@ export class QueryBuilder {
     this.joinClauses = [];
     this.groupByClause = null;
     this.paramCount = 0;
+    this.genreFilter = null;
+  }
+  
+  /**
+   * Set genre filter for content filtering
+   * @param genre Genre to filter by
+   */
+  setGenreFilter(genre: string | null): QueryBuilder {
+    this.genreFilter = genre;
+    return this;
   }
 
   /**
@@ -162,8 +173,55 @@ export class QueryBuilder {
     }
 
     // Add where conditions
-    if (this.whereConditions.length > 0) {
+    const hasWhereConditions = this.whereConditions.length > 0;
+    
+    // Start WHERE clause if there are conditions
+    if (hasWhereConditions) {
       query += ' WHERE ' + this.whereConditions.join(' AND ');
+    }
+    
+    // Add genre filtering if applicable
+    // This is handled differently depending on the table
+    if (this.genreFilter) {
+      // For artists table, filter directly by genres array
+      if (this.table === 'artists') {
+        const paramIndex = this.whereParams.length + 1;
+        const genreCondition = `$${paramIndex} = ANY(genres)`;
+        query += hasWhereConditions ? ` AND ${genreCondition}` : ` WHERE ${genreCondition}`;
+        this.whereParams.push(this.genreFilter);
+      }
+      // For events table, join with artists and filter by their genres
+      else if (this.table === 'events') {
+        // Only add the join if it's not already present
+        if (!this.joinClauses.some(join => join.includes('event_artists'))) {
+          query += ` LEFT JOIN event_artists ON ${this.table}.id = event_artists.event_id`;
+          query += ` LEFT JOIN artists ON event_artists.artist_id = artists.id`;
+        }
+        
+        const paramIndex = this.whereParams.length + 1;
+        const genreCondition = `$${paramIndex} = ANY(artists.genres)`;
+        query += hasWhereConditions ? ` AND ${genreCondition}` : ` WHERE ${genreCondition}`;
+        this.whereParams.push(this.genreFilter);
+      }
+      // For venues table, join with events and artists to filter by genre
+      else if (this.table === 'venues') {
+        // Only add the joins if they're not already present
+        if (!this.joinClauses.some(join => join.includes('events'))) {
+          query += ` LEFT JOIN events ON ${this.table}.id = events.venue_id`;
+          query += ` LEFT JOIN event_artists ON events.id = event_artists.event_id`;
+          query += ` LEFT JOIN artists ON event_artists.artist_id = artists.id`;
+        }
+        
+        const paramIndex = this.whereParams.length + 1;
+        const genreCondition = `$${paramIndex} = ANY(artists.genres)`;
+        query += hasWhereConditions ? ` AND ${genreCondition}` : ` WHERE ${genreCondition}`;
+        this.whereParams.push(this.genreFilter);
+        
+        // Add DISTINCT to avoid duplicate venues
+        if (!this.selectColumns.some(col => col.includes('DISTINCT'))) {
+          query = query.replace('SELECT ', 'SELECT DISTINCT ');
+        }
+      }
     }
 
     // Add group by
@@ -219,6 +277,7 @@ export class QueryBuilder {
     countBuilder.whereConditions = [...this.whereConditions];
     countBuilder.whereParams = [...this.whereParams];
     countBuilder.joinClauses = [...this.joinClauses];
+    countBuilder.genreFilter = this.genreFilter; // Copy genre filter
 
     // Execute count query
     const countResult = await countBuilder.executeSingle<{ total: string }>();

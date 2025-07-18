@@ -56,12 +56,15 @@ export async function GET(request: NextRequest) {
     
     const validatedParams = searchParamsSchema.parse(params);
     
+    // Get genre from request headers (set by middleware)
+    const genreHeader = request.headers.get('x-genre-filter');
+    
     const {
       q,
       type,
       page,
       limit,
-      genres,
+      genres: queryGenres,
       state_province,
       country,
       capacity_min,
@@ -75,6 +78,10 @@ export async function GET(request: NextRequest) {
       sort_by,
       sort_dir
     } = validatedParams;
+    
+    // If genre is specified in the subdomain, use it as the primary filter
+    // Otherwise use the genres from the query parameters
+    const genres = genreHeader ? [genreHeader] : queryGenres;
 
     // Check Elasticsearch health
     const isHealthy = await elasticsearchService.healthCheck();

@@ -10,6 +10,7 @@ import { BaseEntity, QueryParams, PaginatedResult } from '../models/types';
 export abstract class BaseRepository<T extends BaseEntity> {
   protected pool: Pool;
   protected tableName: string;
+  protected genreFilter: string | null;
 
   /**
    * Create a new repository instance
@@ -19,13 +20,30 @@ export abstract class BaseRepository<T extends BaseEntity> {
   constructor(tableName: string, other_pool?: Pool) {
     this.pool = pool || other_pool;
     this.tableName = tableName;
+    this.genreFilter = null;
+  }
+  
+  /**
+   * Set genre filter for content filtering
+   * @param genre Genre to filter by
+   */
+  setGenreFilter(genre: string | null): this {
+    this.genreFilter = genre;
+    return this;
   }
 
   /**
    * Create a new query builder instance
    */
   protected createQueryBuilder(): QueryBuilder {
-    return new QueryBuilder(this.tableName, this.pool);
+    const builder = new QueryBuilder(this.tableName, this.pool);
+    
+    // Apply genre filter if set
+    if (this.genreFilter) {
+      builder.setGenreFilter(this.genreFilter);
+    }
+    
+    return builder;
   }
 
   /**

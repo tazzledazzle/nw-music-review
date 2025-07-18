@@ -26,6 +26,9 @@ export async function GET(
         const limit = parseInt(searchParams.get('limit') || '20');
         const sortBy = searchParams.get('sort_by') || 'name';
         const sortDir = (searchParams.get('sort_dir') || 'asc') as 'asc' | 'desc';
+        
+        // Get genre filter from request headers (set by middleware)
+        const genreFilter = request.headers.get('x-genre-filter');
 
         // Find the city first
         const cityRepo = new CityRepository();
@@ -43,6 +46,12 @@ export async function GET(
 
         // Get venues for the city with pagination
         const venueRepo = new VenueRepository();
+        
+        // Apply genre filter if present
+        if (genreFilter) {
+            venueRepo.setGenreFilter(genreFilter);
+        }
+        
         const result = await venueRepo.findByCityId(targetCity.id, {
             page,
             limit,
@@ -52,6 +61,7 @@ export async function GET(
 
         return NextResponse.json({
             city: targetCity.name,
+            genre: genreFilter || null,
             venues: result.data,
             pagination: {
                 page: result.page,
