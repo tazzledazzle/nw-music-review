@@ -551,7 +551,7 @@ export class ElasticsearchService {
   /**
    * Bulk index documents
    */
-  async bulkIndex(operations: Array<{ index: string; id: string; document: any }>): Promise<void> {
+  async bulkIndex(operations: Array<{ index: string; id: string; document: unknown }>): Promise<void> {
     const body = operations.flatMap(op => [
       { index: { _index: op.index, _id: op.id } },
       op.document
