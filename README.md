@@ -6,13 +6,14 @@ A web application for discovering music venues, shows, and artists across Washin
 
 ### Prerequisites
 
-- Node.js 18+ 
+- Node.js 18+
 - PostgreSQL 12+ with PostGIS extension
 - npm or yarn
 
 ### Database Setup
 
 1. Install PostgreSQL and PostGIS extension:
+
    ```bash
    # On macOS with Homebrew
    brew install postgresql postgis
@@ -22,11 +23,13 @@ A web application for discovering music venues, shows, and artists across Washin
    ```
 
 2. Create the database:
+
    ```bash
    createdb venue_explorer
    ```
 
 3. Enable PostGIS extension (this will be done automatically by migrations):
+
    ```sql
    CREATE EXTENSION postgis;
    ```
@@ -34,27 +37,32 @@ A web application for discovering music venues, shows, and artists across Washin
 ### Installation
 
 1. Clone the repository and install dependencies:
+
    ```bash
    cd venue-explorer
    npm install
    ```
 
 2. Copy the environment file and configure your database:
+
    ```bash
    cp .env.local.example .env.local
    ```
-   
+
    Update the database connection string in `.env.local`:
-   ```
+
+   ```bash
    DATABASE_URL=postgresql://username:password@localhost:5432/venue_explorer
    ```
 
 3. Run database migrations:
+
    ```bash
    npm run migrate:up
    ```
 
 4. Start the development server:
+
    ```bash
    npm run dev
    ```
@@ -70,7 +78,7 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 ## Project Structure
 
-```
+```shell
 venue-explorer/
 ├── src/
 │   ├── app/          # Next.js app router pages

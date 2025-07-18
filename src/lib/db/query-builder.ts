@@ -4,7 +4,7 @@ import { QueryParams, PaginatedResult } from '../models/types';
 
 /**
  * Database query builder utility class
- * Provides methods for building and executing SQL queries
+ * Provides methods for building and executing SQL queries with performance optimizations
  */
 export class QueryBuilder {
   private pool: Pool;
@@ -19,6 +19,9 @@ export class QueryBuilder {
   private groupByClause: string | null;
   private paramCount: number;
   private genreFilter: string | null;
+  private indexHints: string[];
+  private useCache: boolean;
+  private queryComment: string | null;
 
   /**
    * Create a new QueryBuilder instance
@@ -38,6 +41,9 @@ export class QueryBuilder {
     this.groupByClause = null;
     this.paramCount = 0;
     this.genreFilter = null;
+    this.indexHints = [];
+    this.useCache = true;
+    this.queryComment = null;
   }
   
   /**
@@ -116,6 +122,32 @@ export class QueryBuilder {
   }
 
   /**
+   * Add an index hint to optimize query execution
+   * @param indexHint Index hint to add
+   */
+  addIndexHint(indexHint: string): QueryBuilder {
+    this.indexHints.push(indexHint);
+    return this;
+  }
+
+  /**
+   * Disable query caching for this query
+   */
+  noCache(): QueryBuilder {
+    this.useCache = false;
+    return this;
+  }
+
+  /**
+   * Add a comment to the query for debugging and monitoring
+   * @param comment Comment to add
+   */
+  comment(comment: string): QueryBuilder {
+    this.queryComment = comment;
+    return this;
+  }
+
+  /**
    * Apply pagination parameters
    * @param page Page number (1-based)
    * @param limit Items per page
@@ -154,7 +186,7 @@ export class QueryBuilder {
     Object.entries(filterParams).forEach(([key, value]) => {
       if (value !== undefined && value !== null) {
         this.paramCount++;
-        this.where(`${key} = $${this.paramCount}`, value);
+        this.where(`${key} = ${this.paramCount}`, value);
       }
     });
 
@@ -165,7 +197,16 @@ export class QueryBuilder {
    * Build the complete SQL query
    */
   buildQuery(): { text: string; values: unknown[] } {
-    let query = `SELECT ${this.selectColumns.join(', ')} FROM ${this.table}`;
+    // Add query comment if provided
+    let query = this.queryComment ? `/* ${this.queryComment} */ ` : '';
+    
+    // Start with SELECT clause
+    query += `SELECT ${this.selectColumns.join(', ')} FROM ${this.table}`;
+    
+    // Add index hints if provided
+    if (this.indexHints.length > 0) {
+      query += ` ${this.indexHints.join(' ')}`;
+    }
 
     // Add joins
     if (this.joinClauses.length > 0) {
@@ -186,9 +227,14 @@ export class QueryBuilder {
       // For artists table, filter directly by genres array
       if (this.table === 'artists') {
         const paramIndex = this.whereParams.length + 1;
-        const genreCondition = `$${paramIndex} = ANY(genres)`;
+        const genreCondition = `${paramIndex} = ANY(genres)`;
         query += hasWhereConditions ? ` AND ${genreCondition}` : ` WHERE ${genreCondition}`;
         this.whereParams.push(this.genreFilter);
+        
+        // Add index hint for genre filtering
+        if (!this.indexHints.some(hint => hint.includes('genres_idx'))) {
+          query = query.replace(`FROM ${this.table}`, `FROM ${this.table} INDEXED BY genres_idx`);
+        }
       }
       // For events table, join with artists and filter by their genres
       else if (this.table === 'events') {
@@ -199,7 +245,7 @@ export class QueryBuilder {
         }
         
         const paramIndex = this.whereParams.length + 1;
-        const genreCondition = `$${paramIndex} = ANY(artists.genres)`;
+        const genreCondition = `${paramIndex} = ANY(artists.genres)`;
         query += hasWhereConditions ? ` AND ${genreCondition}` : ` WHERE ${genreCondition}`;
         this.whereParams.push(this.genreFilter);
       }
@@ -213,7 +259,7 @@ export class QueryBuilder {
         }
         
         const paramIndex = this.whereParams.length + 1;
-        const genreCondition = `$${paramIndex} = ANY(artists.genres)`;
+        const genreCondition = `${paramIndex} = ANY(artists.genres)`;
         query += hasWhereConditions ? ` AND ${genreCondition}` : ` WHERE ${genreCondition}`;
         this.whereParams.push(this.genreFilter);
         
@@ -242,6 +288,11 @@ export class QueryBuilder {
     if (this.offsetValue !== null) {
       query += ` OFFSET ${this.offsetValue}`;
     }
+    
+    // Add cache directive
+    if (!this.useCache) {
+      query += ' /* NO CACHE */';
+    }
 
     return {
       text: query,
@@ -254,7 +305,17 @@ export class QueryBuilder {
    */
   async execute<T>(): Promise<T[]> {
     const { text, values } = this.buildQuery();
+    
+    // Add query timing for performance monitoring
+    const startTime = Date.now();
     const result = await this.pool.query(text, values);
+    const duration = Date.now() - startTime;
+    
+    // Log slow queries (over 100ms) for optimization
+    if (duration > 100) {
+      console.warn(`Slow query (${duration}ms): ${text}`);
+    }
+    
     return result.rows as T[];
   }
 
@@ -262,6 +323,11 @@ export class QueryBuilder {
    * Execute the query and return a single result
    */
   async executeSingle<T>(): Promise<T | null> {
+    // Optimize by adding LIMIT 1 for single result queries
+    if (this.limitValue === null) {
+      this.limit(1);
+    }
+    
     const { text, values } = this.buildQuery();
     const result = await this.pool.query(text, values);
     return result.rows.length > 0 ? (result.rows[0] as T) : null;
@@ -271,17 +337,32 @@ export class QueryBuilder {
    * Execute the query and return paginated results
    */
   async executePaginated<T>(page: number = 1, limit: number = 20): Promise<PaginatedResult<T>> {
-    // Clone the current query builder for the count query
-    const countBuilder = new QueryBuilder(this.table, this.pool);
-    countBuilder.selectColumns = ['COUNT(*) AS total'];
-    countBuilder.whereConditions = [...this.whereConditions];
-    countBuilder.whereParams = [...this.whereParams];
-    countBuilder.joinClauses = [...this.joinClauses];
-    countBuilder.genreFilter = this.genreFilter; // Copy genre filter
-
-    // Execute count query
-    const countResult = await countBuilder.executeSingle<{ total: string }>();
-    const total = countResult ? parseInt(countResult.total, 10) : 0;
+    // Optimize count query by using simpler query when possible
+    let total = 0;
+    
+    // If we have a simple query without complex joins or filters, use COUNT(*) directly
+    if (this.joinClauses.length === 0 && !this.genreFilter && this.whereConditions.length <= 1) {
+      const countQuery = {
+        text: `SELECT COUNT(*) AS total FROM ${this.table}` + 
+              (this.whereConditions.length ? ` WHERE ${this.whereConditions[0]}` : ''),
+        values: this.whereParams,
+      };
+      
+      const countResult = await this.pool.query(countQuery);
+      total = parseInt(countResult.rows[0].total, 10);
+    } else {
+      // For complex queries, use a subquery to get accurate count
+      const countBuilder = new QueryBuilder(this.table, this.pool);
+      countBuilder.selectColumns = ['COUNT(*) OVER() AS total', 'id'];
+      countBuilder.whereConditions = [...this.whereConditions];
+      countBuilder.whereParams = [...this.whereParams];
+      countBuilder.joinClauses = [...this.joinClauses];
+      countBuilder.genreFilter = this.genreFilter;
+      countBuilder.limit(1); // Only need one row for the count
+      
+      const countResult = await countBuilder.execute<{ total: string }>();
+      total = countResult.length > 0 ? parseInt(countResult[0].total, 10) : 0;
+    }
 
     // Apply pagination to the original query
     this.paginate(page, limit);
@@ -305,7 +386,7 @@ export class QueryBuilder {
   async insert<T>(data: Record<string, unknown>): Promise<T> {
     const columns = Object.keys(data);
     const values = Object.values(data);
-    const placeholders = values.map((_, i) => `$${i + 1}`);
+    const placeholders = values.map((_, i) => `${i + 1}`);
 
     const query = {
       text: `INSERT INTO ${this.table} (${columns.join(', ')}) VALUES (${placeholders.join(', ')}) RETURNING *`,
@@ -317,6 +398,42 @@ export class QueryBuilder {
   }
 
   /**
+   * Bulk insert multiple records
+   * @param dataArray Array of objects with column values
+   */
+  async bulkInsert<T>(dataArray: Record<string, unknown>[]): Promise<T[]> {
+    if (dataArray.length === 0) {
+      return [];
+    }
+    
+    // Get columns from the first object
+    const columns = Object.keys(dataArray[0]);
+    
+    // Create placeholders for all values
+    let placeholderIndex = 1;
+    const valueSets: string[] = [];
+    const allValues: unknown[] = [];
+    
+    dataArray.forEach(data => {
+      const rowPlaceholders: string[] = [];
+      columns.forEach(col => {
+        rowPlaceholders.push(`$${placeholderIndex}`);
+        allValues.push(data[col]);
+        placeholderIndex++;
+      });
+      valueSets.push(`(${rowPlaceholders.join(', ')})`);
+    });
+    
+    const query = {
+      text: `INSERT INTO ${this.table} (${columns.join(', ')}) VALUES ${valueSets.join(', ')} RETURNING *`,
+      values: allValues,
+    };
+    
+    const result = await this.pool.query(query);
+    return result.rows as T[];
+  }
+
+  /**
    * Update an existing record
    * @param id Record ID
    * @param data Object with column values to update
@@ -324,10 +441,10 @@ export class QueryBuilder {
   async update<T>(id: number, data: Record<string, unknown>): Promise<T | null> {
     const columns = Object.keys(data);
     const values = Object.values(data);
-    const setClause = columns.map((col, i) => `${col} = $${i + 1}`).join(', ');
+    const setClause = columns.map((col, i) => `${col} = ${i + 1}`).join(', ');
 
     const query = {
-      text: `UPDATE ${this.table} SET ${setClause} WHERE id = $${values.length + 1} RETURNING *`,
+      text: `UPDATE ${this.table} SET ${setClause} WHERE id = ${values.length + 1} RETURNING *`,
       values: [...values, id],
     };
 
@@ -356,5 +473,20 @@ export class QueryBuilder {
    */
   static async raw<T extends QueryResultRow>(text: string, values: unknown[] = []): Promise<QueryResult<T>> {
     return await pool.query(text, values);
+  }
+  
+  /**
+   * Execute an EXPLAIN query to analyze query performance
+   * @returns Explain plan as string
+   */
+  async explain(): Promise<string> {
+    const { text, values } = this.buildQuery();
+    const explainQuery = {
+      text: `EXPLAIN ANALYZE ${text}`,
+      values,
+    };
+    
+    const result = await this.pool.query(explainQuery);
+    return result.rows.map(row => row['QUERY PLAN']).join('\n');
   }
 }

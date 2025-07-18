@@ -14,6 +14,12 @@ import {
   EventQueryBuilder,
   SuggestionQueryBuilder 
 } from './query-builders';
+import {
+  optimizeSearchQuery,
+  createCachedQuery,
+  optimizeAggregations,
+  createOptimizedGeoQuery
+} from './query-optimizers';
 
 // Elasticsearch client configuration
 const client = new Client({
@@ -402,7 +408,7 @@ export class ElasticsearchService {
     };
     
     // Create search body with or without genre filter
-    const searchBody = {
+    let searchBody = {
       query: genreFilter 
         ? {
             bool: {
@@ -422,7 +428,7 @@ export class ElasticsearchService {
     };
     
     // For events, we need to use a nested query for artist genres
-    const eventSearchBody = {
+    let eventSearchBody = {
       query: genreFilter
         ? {
             bool: {
@@ -447,19 +453,29 @@ export class ElasticsearchService {
         { created_at: { order: 'desc' } }
       ]
     };
+    
+    // Apply query optimizations
+    searchBody = optimizeSearchQuery(searchBody, 100);
+    eventSearchBody = optimizeSearchQuery(eventSearchBody, 100);
+    
+    // Create cached queries for better performance
+    const cacheKey = `${query}_${genreFilter || 'all'}_${page}_${limit}`;
+    const cachedVenueQuery = createCachedQuery(searchBody, `venues_${cacheKey}`, 300); // 5 minutes cache
+    const cachedArtistQuery = createCachedQuery(searchBody, `artists_${cacheKey}`, 600); // 10 minutes cache
+    const cachedEventQuery = createCachedQuery(eventSearchBody, `events_${cacheKey}`, 180); // 3 minutes cache
 
     const [venueResults, artistResults, eventResults] = await Promise.all([
       this.client.search({ 
         index: INDICES.VENUES, 
-        body: searchBody 
+        body: cachedVenueQuery 
       }),
       this.client.search({ 
         index: INDICES.ARTISTS, 
-        body: searchBody 
+        body: cachedArtistQuery 
       }),
       this.client.search({ 
         index: INDICES.EVENTS, 
-        body: eventSearchBody 
+        body: cachedEventQuery 
       })
     ]);
 

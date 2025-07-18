@@ -1,6 +1,7 @@
 import { CityRepository } from '@/lib/repositories/city-repository';
 import { VenueRepository } from '@/lib/repositories/venue-repository';
 import { NextRequest, NextResponse } from 'next/server';
+import { withCaching, CACHE_CONFIGS } from '@/lib/utils/cache-utils';
 
 /**
  * GET /api/cities/{city}/venues
@@ -59,7 +60,8 @@ export async function GET(
             sort_dir: sortDir
         });
 
-        return NextResponse.json({
+        // Create the response
+        const response = NextResponse.json({
             city: targetCity.name,
             genre: genreFilter || null,
             venues: result.data,
@@ -70,6 +72,10 @@ export async function GET(
                 total_pages: result.total_pages
             }
         });
+        
+        // Apply caching headers - use STANDARD cache for venue listings
+        // This allows for a good balance between freshness and performance
+        return withCaching(request, response);
 
     } catch (error) {
         console.error(`Error fetching venues for city ${params.city}:`, error);
@@ -82,3 +88,6 @@ export async function GET(
         );
     }
 }
+
+// Configure Next.js to use ISR (Incremental Static Regeneration) for this route
+export const revalidate = 3600; // Revalidate every hour
