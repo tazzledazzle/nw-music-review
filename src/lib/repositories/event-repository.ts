@@ -287,4 +287,33 @@ export class EventRepository extends BaseRepository<Event> {
     
     return result.rows;
   }
+
+  /**
+   * Associate an artist with an event
+   * @param eventId Event ID
+   * @param artistId Artist ID
+   */
+  async addArtistToEvent(eventId: number, artistId: number): Promise<void> {
+    const query = `
+      INSERT INTO event_artists (event_id, artist_id)
+      VALUES ($1, $2)
+      ON CONFLICT (event_id, artist_id) DO NOTHING
+    `;
+    
+    await QueryBuilder.raw(query, [eventId, artistId]);
+  }
+
+  /**
+   * Remove an artist from an event
+   * @param eventId Event ID
+   * @param artistId Artist ID
+   */
+  async removeArtistFromEvent(eventId: number, artistId: number): Promise<void> {
+    const query = `
+      DELETE FROM event_artists
+      WHERE event_id = $1 AND artist_id = $2
+    `;
+    
+    await QueryBuilder.raw(query, [eventId, artistId]);
+  }
 }

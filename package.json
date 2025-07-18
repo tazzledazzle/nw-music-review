@@ -17,7 +17,10 @@
     "es:init": "node scripts/elasticsearch-setup.js init",
     "es:sync": "node scripts/elasticsearch-setup.js sync",
     "es:health": "node scripts/elasticsearch-setup.js health",
-    "es:setup": "node scripts/elasticsearch-setup.js setup"
+    "es:setup": "node scripts/elasticsearch-setup.js setup",
+    "ingest:locations": "node scripts/data-ingestion.js locations",
+    "ingest:artist": "node scripts/data-ingestion.js artist",
+    "ingest:help": "node scripts/data-ingestion.js help"
   },
   "dependencies": {
     "@elastic/elasticsearch": "^9.0.3",
