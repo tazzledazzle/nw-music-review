@@ -326,7 +326,11 @@ export default function SearchInput({
           className="block w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg 
                    focus:ring-2 focus:ring-blue-500 focus:border-transparent
                    bg-white dark:bg-gray-800 dark:border-gray-600 dark:text-white
-                   placeholder-gray-500 dark:placeholder-gray-400"
+                   placeholder-gray-500 dark:placeholder-gray-400
+                   text-base md:text-sm" // Larger text on mobile for better touch targets
+          autoComplete="off" // Prevent browser autocomplete from interfering
+          autoCorrect="off"
+          spellCheck="false"
         />
 
         {query && (
@@ -350,17 +354,18 @@ export default function SearchInput({
         <button
           onClick={handleNearMe}
           disabled={isNearMeLoading}
-          className="mt-2 inline-flex items-center px-3 py-2 border border-gray-300 
-                   rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50
+          className="mt-2 inline-flex items-center px-4 py-3 border border-gray-300 
+                   rounded-md text-base md:text-sm font-medium text-gray-700 bg-white hover:bg-gray-50
                    dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700
-                   disabled:opacity-50 disabled:cursor-not-allowed"
+                   disabled:opacity-50 disabled:cursor-not-allowed w-full md:w-auto justify-center md:justify-start
+                   touch-manipulation" // Added touch-manipulation for better touch response
         >
           {isNearMeLoading ? (
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-2"></div>
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500 mr-2"></div>
           ) : (
-            <MapPinIcon className="h-4 w-4 mr-2" />
+            <MapPinIcon className="h-5 w-5 mr-2" />
           )}
-          {isNearMeLoading ? 'Getting location...' : 'Near me'}
+          {isNearMeLoading ? 'Getting location...' : 'Find venues near me'}
         </button>
       )}
 
@@ -375,15 +380,16 @@ export default function SearchInput({
             <button
               key={`${suggestion.type}-${suggestion.id}`}
               onClick={() => handleSuggestionClick(suggestion)}
-              className={`w-full px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-700
+              className={`w-full px-4 py-4 md:py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-700
                         border-b border-gray-100 dark:border-gray-700 last:border-b-0
+                        touch-manipulation active:bg-gray-100 dark:active:bg-gray-700
                         ${index === selectedIndex ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}
             >
               <div className="flex items-start space-x-3">
-                <span className="text-lg mt-0.5">{getTypeIcon(suggestion.type)}</span>
+                <span className="text-xl md:text-lg mt-0.5">{getTypeIcon(suggestion.type)}</span>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center space-x-2">
-                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                    <p className="text-base md:text-sm font-medium text-gray-900 dark:text-white truncate">
                       {suggestion.name}
                     </p>
                     <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
@@ -406,7 +412,7 @@ export default function SearchInput({
                       {suggestion.genres.slice(0, 2).map((genre, i) => (
                         <span 
                           key={`${genre}-${i}`}
-                          className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs 
+                          className="inline-flex items-center px-2 py-1 md:px-1.5 md:py-0.5 rounded-full text-xs 
                                    font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 
                                    dark:text-blue-300"
                         >

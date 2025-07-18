@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { headers } from "next/headers";
 import { GenreProvider } from "@/lib/context/genre-context";
+import ResponsiveNavbar from "@/components/navigation/ResponsiveNavbar";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -45,7 +46,10 @@ export default function RootLayout({
               Browsing {genreFilter.toUpperCase()} music venues and events
             </div>
           )}
-          {children}
+          <ResponsiveNavbar />
+          <div className="pt-16">
+            {children}
+          </div>
         </GenreProvider>
       </body>
     </html>
