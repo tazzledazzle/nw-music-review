@@ -8,8 +8,13 @@ import {
   TicketIcon,
   UserGroupIcon,
   StarIcon,
-  ClockIcon
+  ClockIcon,
+  AdjustmentsHorizontalIcon
 } from '@heroicons/react/24/outline';
+import { useGenre } from '@/lib/context/genre-context';
+import { VALID_GENRES } from '@/middleware';
+import GenreBadge from '../genre/GenreBadge';
+import GenreFilter from '../genre/GenreFilter';
 
 interface SearchResultsProps {
   query: string;
@@ -42,13 +47,15 @@ export default function SearchResults({
   initialResults,
   location 
 }: SearchResultsProps) {
+  const { currentGenre, isGenreFiltered } = useGenre();
   const [results, setResults] = useState(initialResults);
   const [loading, setLoading] = useState(!initialResults);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+  const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState<SearchFilters>({
     type,
-    genres: [],
+    genres: isGenreFiltered && currentGenre ? [currentGenre] : [],
     state_province: [],
     sort_dir: 'desc'
   });
@@ -185,15 +192,29 @@ export default function SearchResults({
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
               Search Results
+              {isGenreFiltered && (
+                <GenreBadge className="ml-3" size="sm" showClear={true} />
+              )}
             </h1>
             <p className="text-gray-600 dark:text-gray-400 mt-1">
               {totalResults} results for "{query}"
               {location && ` within ${location.radius || 25}km`}
+              {isGenreFiltered && ` in ${currentGenre} music`}
             </p>
           </div>
           
-          {/* Type Filter */}
-          <div className="mt-4 sm:mt-0">
+          <div className="mt-4 sm:mt-0 flex items-center space-x-2">
+            {/* Filters Toggle Button */}
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="px-3 py-2 border border-gray-300 rounded-lg bg-white dark:bg-gray-700 
+                       dark:border-gray-600 dark:text-white flex items-center"
+            >
+              <AdjustmentsHorizontalIcon className="h-5 w-5 mr-1" />
+              Filters
+            </button>
+            
+            {/* Type Filter */}
             <select
               value={filters.type}
               onChange={(e) => handleFilterChange({ type: e.target.value })}
@@ -207,6 +228,81 @@ export default function SearchResults({
             </select>
           </div>
         </div>
+        
+        {/* Advanced Filters */}
+        {showFilters && (
+          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Genre Filter */}
+            <div>
+              <GenreFilter 
+                onChange={(genre) => {
+                  handleFilterChange({ 
+                    genres: genre ? [genre] : [] 
+                  });
+                }}
+                showAllOption={true}
+              />
+            </div>
+            
+            {/* State/Province Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                State/Province
+              </label>
+              <select
+                value={filters.state_province[0] || ''}
+                onChange={(e) => handleFilterChange({ 
+                  state_province: e.target.value ? [e.target.value] : [] 
+                })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white dark:bg-gray-700 
+                         dark:border-gray-600 dark:text-white"
+              >
+                <option value="">All States/Provinces</option>
+                <option value="WA">Washington</option>
+                <option value="OR">Oregon</option>
+                <option value="ID">Idaho</option>
+                <option value="BC">British Columbia</option>
+              </select>
+            </div>
+            
+            {/* Sort By Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Sort By
+              </label>
+              <select
+                value={`${filters.sort_by || 'relevance'}-${filters.sort_dir}`}
+                onChange={(e) => {
+                  const [sortBy, sortDir] = e.target.value.split('-');
+                  handleFilterChange({ 
+                    sort_by: sortBy === 'relevance' ? undefined : sortBy,
+                    sort_dir: sortDir as 'asc' | 'desc'
+                  });
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white dark:bg-gray-700 
+                         dark:border-gray-600 dark:text-white"
+              >
+                <option value="relevance-desc">Relevance</option>
+                <option value="name-asc">Name (A-Z)</option>
+                <option value="name-desc">Name (Z-A)</option>
+                <option value="created_at-desc">Newest First</option>
+                <option value="created_at-asc">Oldest First</option>
+                {filters.type === 'venue' && (
+                  <>
+                    <option value="prosper_rank-desc">Highest Ranked</option>
+                    <option value="capacity-desc">Largest Capacity</option>
+                  </>
+                )}
+                {filters.type === 'event' && (
+                  <>
+                    <option value="event_datetime-asc">Upcoming First</option>
+                    <option value="event_datetime-desc">Past First</option>
+                  </>
+                )}
+              </select>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Results Sections */}
@@ -332,15 +428,21 @@ export default function SearchResults({
                         {artist.genres && artist.genres.length > 0 && (
                           <div className="mt-1 flex flex-wrap gap-1">
                             {artist.genres.slice(0, 3).map((genre: string) => (
-                              <span 
+                              <Link 
                                 key={genre}
+                                href={`http://${genre}.${window.location.host}`}
                                 className="inline-flex items-center px-2 py-0.5 rounded text-xs 
                                          font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 
-                                         dark:text-blue-300"
+                                         dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800"
                               >
                                 {genre}
-                              </span>
+                              </Link>
                             ))}
+                            {artist.genres.length > 3 && (
+                              <span className="text-xs text-gray-500">
+                                +{artist.genres.length - 3} more
+                              </span>
+                            )}
                           </div>
                         )}
                         
@@ -416,6 +518,30 @@ export default function SearchResults({
                             >
                               {artist.name}
                             </span>
+                          ))}
+                          {event.artists.length > 3 && (
+                            <span className="text-xs text-gray-500">
+                              +{event.artists.length - 3} more
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      
+                      {/* Display genres for the event */}
+                      {event.artists && event.artists.some((artist: any) => artist.genres?.length > 0) && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {Array.from(new Set(
+                            event.artists.flatMap((artist: any) => artist.genres || []).slice(0, 3)
+                          )).map((genre: string) => (
+                            <Link 
+                              key={genre}
+                              href={`http://${genre}.${window.location.host}`}
+                              className="inline-flex items-center px-2 py-0.5 rounded-full text-xs 
+                                       font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 
+                                       dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800"
+                            >
+                              {genre}
+                            </Link>
                           ))}
                         </div>
                       )}

@@ -4,6 +4,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { MagnifyingGlassIcon, MapPinIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useRouter } from 'next/navigation';
 import { debounce } from 'lodash';
+import { useGenre } from '@/lib/context/genre-context';
+import GenreBadge from '../genre/GenreBadge';
 
 interface SearchSuggestion {
   id: number;
@@ -14,6 +16,7 @@ interface SearchSuggestion {
     city: string;
     state_province: string;
   };
+  genres?: string[];
 }
 
 interface SearchInputProps {
@@ -22,6 +25,7 @@ interface SearchInputProps {
   showNearMe?: boolean;
   className?: string;
   autoFocus?: boolean;
+  showGenreBadge?: boolean;
 }
 
 export default function SearchInput({ 
@@ -29,7 +33,8 @@ export default function SearchInput({
   onSearch,
   showNearMe = true,
   className = "",
-  autoFocus = false
+  autoFocus = false,
+  showGenreBadge = true
 }: SearchInputProps) {
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
@@ -37,6 +42,8 @@ export default function SearchInput({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [isNearMeLoading, setIsNearMeLoading] = useState(false);
+  
+  const { currentGenre, isGenreFiltered } = useGenre();
   
   const inputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
@@ -53,8 +60,18 @@ export default function SearchInput({
 
       setIsLoading(true);
       try {
+        // Add genre to search params if filtered
+        const searchParams = new URLSearchParams({
+          q: searchQuery,
+          limit: '5'
+        });
+        
+        if (isGenreFiltered && currentGenre) {
+          searchParams.set('genres', currentGenre);
+        }
+        
         const response = await fetch(
-          `/api/search?q=${encodeURIComponent(searchQuery)}&limit=5`
+          `/api/search?${searchParams.toString()}`
         );
         
         if (response.ok) {
@@ -78,7 +95,8 @@ export default function SearchInput({
               id: artist.id,
               name: artist.name,
               type: 'artist',
-              subtitle: artist.genres?.join(', ')
+              subtitle: artist.genres?.join(', '),
+              genres: artist.genres
             });
           });
 
@@ -89,7 +107,8 @@ export default function SearchInput({
               name: event.title,
               type: 'event',
               subtitle: `${event.venue.name} • ${new Date(event.event_datetime).toLocaleDateString()}`,
-              location: event.venue.city
+              location: event.venue.city,
+              genres: event.artists?.flatMap((artist: any) => artist.genres || [])
             });
           });
 
@@ -102,7 +121,7 @@ export default function SearchInput({
         setIsLoading(false);
       }
     }, 300),
-    []
+    [currentGenre, isGenreFiltered]
   );
 
   // Handle input change
@@ -124,6 +143,12 @@ export default function SearchInput({
         // Navigate to search results page
         const params = new URLSearchParams({ q: finalQuery });
         if (searchType) params.set('type', searchType);
+        
+        // Add genre filter if applicable
+        if (isGenreFiltered && currentGenre) {
+          params.set('genres', currentGenre);
+        }
+        
         router.push(`/search?${params.toString()}`);
       }
     }
@@ -167,6 +192,12 @@ export default function SearchInput({
           lon: longitude.toString(),
           radius: '25'
         });
+        
+        // Add genre filter if applicable
+        if (isGenreFiltered && currentGenre) {
+          params.set('genres', currentGenre);
+        }
+        
         router.push(`/search/nearby?${params.toString()}`);
         setIsNearMeLoading(false);
       },
@@ -265,6 +296,16 @@ export default function SearchInput({
 
   return (
     <div className={`relative ${className}`}>
+      {/* Genre Badge */}
+      {showGenreBadge && isGenreFiltered && (
+        <div className="mb-2">
+          <GenreBadge showClear={true} />
+          <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">
+            Showing {currentGenre} content only
+          </span>
+        </div>
+      )}
+      
       <div className="relative">
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
           <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
@@ -281,7 +322,7 @@ export default function SearchInput({
               setShowSuggestions(true);
             }
           }}
-          placeholder={placeholder}
+          placeholder={isGenreFiltered ? `Search ${currentGenre} ${placeholder}` : placeholder}
           className="block w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg 
                    focus:ring-2 focus:ring-blue-500 focus:border-transparent
                    bg-white dark:bg-gray-800 dark:border-gray-600 dark:text-white
@@ -359,6 +400,23 @@ export default function SearchInput({
                     <p className="text-xs text-gray-400 dark:text-gray-500">
                       {suggestion.location.city}, {suggestion.location.state_province}
                     </p>
+                  )}
+                  {suggestion.genres && suggestion.genres.length > 0 && (
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {suggestion.genres.slice(0, 2).map((genre, i) => (
+                        <span 
+                          key={`${genre}-${i}`}
+                          className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs 
+                                   font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 
+                                   dark:text-blue-300"
+                        >
+                          {genre}
+                        </span>
+                      ))}
+                      {suggestion.genres.length > 2 && (
+                        <span className="text-xs text-gray-500">+{suggestion.genres.length - 2} more</span>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
