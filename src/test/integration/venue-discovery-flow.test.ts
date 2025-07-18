@@ -8,17 +8,21 @@ import { GET as getVenues } from '@/app/api/cities/[city]/venues/route';
 import { GET as getVenue } from '@/app/api/venues/[venue]/route';
 import { GET as getVenueEvents } from '@/app/api/venues/[venue]/events/route';
 
-// Mock all repository dependencies
-vi.mock('@/lib/repositories/city-repository');
-vi.mock('@/lib/repositories/venue-repository');
-vi.mock('@/lib/repositories/event-repository');
+// Import repositories for mocking and direct access
+import { CityRepository } from '@/lib/repositories/city-repository';
+import { VenueRepository } from '@/lib/repositories/venue-repository';
+import { EventRepository } from '@/lib/repositories/event-repository';
 
-describe('Venue Discovery Integration Flow', () => {
+describe('Venue Discovery Flow Integration Tests', () => {
+
+  // Mock all repository dependencies
+  vi.mock('@/lib/repositories/city-repository');
+  vi.mock('@/lib/repositories/venue-repository');
+  vi.mock('@/lib/repositories/event-repository');
+
+  // Repositories are now imported at the top of the file
   beforeAll(() => {
-    // Setup mock data for the complete flow
-    const { CityRepository } = require('@/lib/repositories/city-repository');
-    const { VenueRepository } = require('@/lib/repositories/venue-repository');
-    const { EventRepository } = require('@/lib/repositories/event-repository');
+  // Setup mock data for the complete flow
 
     // Mock regions data
     CityRepository.prototype.findRegions = vi.fn().mockResolvedValue([
@@ -245,13 +249,10 @@ describe('Venue Discovery Integration Flow', () => {
       total: 2,
       total_pages: 2
     }));
-  });
-
-  it('should handle errors gracefully throughout the flow', async () => {
-    const { CityRepository } = require('@/lib/repositories/city-repository');
-    
     // Mock a database error
     CityRepository.prototype.findRegions.mockRejectedValueOnce(new Error('Database connection failed'));
+    // Mock a database error
+    (CityRepository.prototype.findRegions as any).mockRejectedValueOnce(new Error('Database connection failed'));
 
     const regionsRequest = new NextRequest('http://localhost/api/regions');
     const regionsResponse = await getRegions(regionsRequest);
@@ -261,11 +262,9 @@ describe('Venue Discovery Integration Flow', () => {
     expect(regionsData.error).toBe('Failed to fetch regions');
   });
 
-  it('should handle not found cases in the flow', async () => {
-    const { VenueRepository } = require('@/lib/repositories/venue-repository');
-    
+  it('should handle venue not found error', async () => {
     // Mock venue not found
-    VenueRepository.prototype.findByIdWithCity.mockResolvedValueOnce(null);
+    (VenueRepository.prototype.findByIdWithCity as any).mockResolvedValueOnce(null);
 
     const venueRequest = new NextRequest('http://localhost/api/venues/999');
     const venueResponse = await getVenue(venueRequest, { params: { venue: '999' } });

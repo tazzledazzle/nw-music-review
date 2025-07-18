@@ -1,3 +1,5 @@
+'use client';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { RequestTracker } from '@/lib/utils/monitoring';
 import { randomUUID } from 'crypto';

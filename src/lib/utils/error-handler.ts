@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { logger } from './logger';
 
 /**
  * Standard error types for the application
@@ -21,14 +22,14 @@ export class AppError extends Error {
   public readonly type: ErrorType;
   public readonly statusCode: number;
   public readonly isOperational: boolean;
-  public readonly context?: Record<string, any>;
+  public readonly context?: Record<string, unknown>;
 
   constructor(
     message: string,
     type: ErrorType = ErrorType.INTERNAL_ERROR,
     statusCode: number = 500,
     isOperational: boolean = true,
-    context?: Record<string, any>
+    context?: Record<string, unknown>
   ) {
     super(message);
     this.name = 'AppError';
@@ -49,7 +50,7 @@ export interface ErrorResponse {
   error: {
     type: string;
     message: string;
-    details?: any;
+    details?: Record<string, unknown>;
     timestamp: string;
     requestId?: string;
   };
@@ -82,7 +83,7 @@ export class ErrorHandler {
         ErrorType.VALIDATION_ERROR,
         'Invalid request parameters',
         400,
-        { issues: (error as any).issues },
+        { issues: (error as { issues: unknown[] }).issues },
         requestId
       );
     }
@@ -129,7 +130,7 @@ export class ErrorHandler {
     type: ErrorType,
     message: string,
     statusCode: number,
-    details?: any,
+    details?: Record<string, unknown>,
     requestId?: string
   ): NextResponse<ErrorResponse> {
     const errorResponse: ErrorResponse = {
@@ -150,8 +151,6 @@ export class ErrorHandler {
    */
   private static logError(error: unknown, requestId?: string): void {
     try {
-      const { logger } = require('./logger');
-      
       if (error instanceof AppError) {
         logger.error(
           error.message,
@@ -177,7 +176,8 @@ export class ErrorHandler {
         message: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
         type: error instanceof AppError ? error.type : 'UNKNOWN',
-        context: error instanceof AppError ? error.context : undefined
+        context: error instanceof AppError ? error.context : undefined,
+        loggerError: loggerError instanceof Error ? loggerError.message : String(loggerError)
       });
     }
   }
@@ -195,7 +195,7 @@ export class ErrorHandler {
     );
   }
 
-  static validationError(message: string, details?: any): AppError {
+  static validationError(message: string, details?: Record<string, unknown>): AppError {
     return new AppError(
       message,
       ErrorType.VALIDATION_ERROR,
@@ -223,7 +223,7 @@ export class ErrorHandler {
     );
   }
 
-  static databaseError(message: string, context?: Record<string, any>): AppError {
+  static databaseError(message: string, context?: Record<string, unknown>): AppError {
     return new AppError(
       message,
       ErrorType.DATABASE_ERROR,

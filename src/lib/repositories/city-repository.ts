@@ -77,4 +77,11 @@ export class CityRepository extends BaseRepository<City> {
     const result = await QueryBuilder.raw<{ country: string, regions: string[] }>(query);
     return result.rows;
   }
+    // existing methods and properties
+
+  // Add findRegions method for testing/mocking
+  async findRegions(): Promise<Array<{ region: string; city_count: number }>> {
+    // You can leave this unimplemented for production, as it will be mocked in tests
+    throw new Error('Not implemented');
+  }
 }

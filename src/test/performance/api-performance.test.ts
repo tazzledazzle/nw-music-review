@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
 import { NextRequest } from 'next/server';
+import { CityRepository } from '@/lib/repositories/city-repository';
+import { VenueRepository } from '@/lib/repositories/venue-repository';
+import { elasticsearchService } from '@/lib/search/elasticsearch';
+
 
 // Import API route handlers for performance testing
 import { GET as getHealth } from '@/app/api/health/route';
@@ -23,9 +27,6 @@ vi.mock('@/lib/search/elasticsearch');
 describe('API Performance Tests', () => {
   beforeAll(() => {
     // Setup fast mock responses for performance testing
-    const { CityRepository } = require('@/lib/repositories/city-repository');
-    const { VenueRepository } = require('@/lib/repositories/venue-repository');
-    const { elasticsearchService } = require('@/lib/search/elasticsearch');
 
     // Mock fast responses
     CityRepository.prototype.findRegions = vi.fn().mockResolvedValue([
@@ -62,7 +63,7 @@ describe('API Performance Tests', () => {
   it('should respond to health check within 100ms', async () => {
     const startTime = performance.now();
     
-    const request = new NextRequest('http://localhost/api/health');
+    // const request = new NextRequest('http://localhost/api/health');
     const response = await getHealth();
     
     const endTime = performance.now();
@@ -75,8 +76,8 @@ describe('API Performance Tests', () => {
   it('should respond to regions API within 200ms', async () => {
     const startTime = performance.now();
     
-    const request = new NextRequest('http://localhost/api/regions');
-    const response = await getRegions(request);
+    // const request = new NextRequest('http://localhost/api/regions');
+    const response = await getRegions();
     
     const endTime = performance.now();
     const responseTime = endTime - startTime;
@@ -116,7 +117,7 @@ describe('API Performance Tests', () => {
     const startTime = performance.now();
     
     const promises = Array.from({ length: concurrentRequests }, () => {
-      const request = new NextRequest('http://localhost/api/health');
+      
       return getHealth();
     });
     
@@ -186,8 +187,6 @@ describe('API Performance Tests', () => {
   });
 
   it('should benchmark database query performance', async () => {
-    const { VenueRepository } = require('@/lib/repositories/venue-repository');
-    
     // Mock a more realistic database response time
     VenueRepository.prototype.findByCityId = vi.fn().mockImplementation(() => 
       new Promise(resolve => {
@@ -200,6 +199,7 @@ describe('API Performance Tests', () => {
         }), 50); // Simulate 50ms database query
       })
     );
+  
 
     const startTime = performance.now();
     
