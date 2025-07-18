@@ -139,47 +139,45 @@ export class ElasticsearchService {
     if (!exists) {
       await this.client.indices.create({
         index: INDICES.VENUES,
-        body: {
-          mappings: {
-            properties: {
-              id: { type: 'integer' },
-              name: { 
-                type: 'text',
-                analyzer: 'standard',
-                fields: {
-                  keyword: { type: 'keyword' },
-                  suggest: { type: 'completion' }
-                }
-              },
-              address: { type: 'text' },
-              location: { type: 'geo_point' },
-              capacity: { type: 'integer' },
-              website: { type: 'keyword' },
-              prosper_rank: { type: 'integer' },
-              city: {
-                properties: {
-                  id: { type: 'integer' },
-                  name: { 
-                    type: 'text',
-                    fields: { keyword: { type: 'keyword' } }
-                  },
-                  state_province: { type: 'keyword' },
-                  country: { type: 'keyword' }
-                }
-              },
-              created_at: { type: 'date' }
-            }
-          },
-          settings: {
-            number_of_shards: 1,
-            number_of_replicas: 0,
-            analysis: {
-              analyzer: {
-                venue_analyzer: {
-                  type: 'custom',
-                  tokenizer: 'standard',
-                  filter: ['lowercase', 'asciifolding']
-                }
+        mappings: {
+          properties: {
+            id: { type: 'integer' },
+            name: { 
+              type: 'text',
+              analyzer: 'standard',
+              fields: {
+                keyword: { type: 'keyword' },
+                suggest: { type: 'completion' }
+              }
+            },
+            address: { type: 'text' },
+            location: { type: 'geo_point' },
+            capacity: { type: 'integer' },
+            website: { type: 'keyword' },
+            prosper_rank: { type: 'integer' },
+            city: {
+              properties: {
+                id: { type: 'integer' },
+                name: { 
+                  type: 'text',
+                  fields: { keyword: { type: 'keyword' } }
+                },
+                state_province: { type: 'keyword' },
+                country: { type: 'keyword' }
+              }
+            },
+            created_at: { type: 'date' }
+          }
+        },
+        settings: {
+          number_of_shards: 1,
+          number_of_replicas: 0,
+          analysis: {
+            analyzer: {
+              venue_analyzer: {
+                type: 'custom',
+                tokenizer: 'standard',
+                filter: ['lowercase', 'asciifolding']
               }
             }
           }
@@ -197,34 +195,32 @@ export class ElasticsearchService {
     if (!exists) {
       await this.client.indices.create({
         index: INDICES.ARTISTS,
-        body: {
-          mappings: {
-            properties: {
-              id: { type: 'integer' },
-              name: { 
-                type: 'text',
-                analyzer: 'standard',
-                fields: {
-                  keyword: { type: 'keyword' },
-                  suggest: { type: 'completion' }
-                }
-              },
-              genres: { type: 'keyword' },
-              photo_url: { type: 'keyword' },
-              profile_bio: { type: 'text' },
-              created_at: { type: 'date' }
-            }
-          },
-          settings: {
-            number_of_shards: 1,
-            number_of_replicas: 0,
-            analysis: {
-              analyzer: {
-                artist_analyzer: {
-                  type: 'custom',
-                  tokenizer: 'standard',
-                  filter: ['lowercase', 'asciifolding']
-                }
+        mappings: {
+          properties: {
+            id: { type: 'integer' },
+            name: { 
+              type: 'text',
+              analyzer: 'standard',
+              fields: {
+                keyword: { type: 'keyword' },
+                suggest: { type: 'completion' }
+              }
+            },
+            genres: { type: 'keyword' },
+            photo_url: { type: 'keyword' },
+            profile_bio: { type: 'text' },
+            created_at: { type: 'date' }
+          }
+        },
+        settings: {
+          number_of_shards: 1,
+          number_of_replicas: 0,
+          analysis: {
+            analyzer: {
+              artist_analyzer: {
+                type: 'custom',
+                tokenizer: 'standard',
+                filter: ['lowercase', 'asciifolding']
               }
             }
           }
@@ -242,56 +238,54 @@ export class ElasticsearchService {
     if (!exists) {
       await this.client.indices.create({
         index: INDICES.EVENTS,
-        body: {
-          mappings: {
-            properties: {
-              id: { type: 'integer' },
-              title: { 
-                type: 'text',
-                analyzer: 'standard',
-                fields: {
-                  keyword: { type: 'keyword' },
-                  suggest: { type: 'completion' }
-                }
-              },
-              description: { type: 'text' },
-              event_datetime: { type: 'date' },
-              ticket_url: { type: 'keyword' },
-              venue: {
-                properties: {
-                  id: { type: 'integer' },
-                  name: { 
-                    type: 'text',
-                    fields: { keyword: { type: 'keyword' } }
-                  },
-                  location: { type: 'geo_point' },
-                  city: {
-                    properties: {
-                      name: { type: 'keyword' },
-                      state_province: { type: 'keyword' },
-                      country: { type: 'keyword' }
-                    }
+        mappings: {
+          properties: {
+            id: { type: 'integer' },
+            title: { 
+              type: 'text',
+              analyzer: 'standard',
+              fields: {
+                keyword: { type: 'keyword' },
+                suggest: { type: 'completion' }
+              }
+            },
+            description: { type: 'text' },
+            event_datetime: { type: 'date' },
+            ticket_url: { type: 'keyword' },
+            venue: {
+              properties: {
+                id: { type: 'integer' },
+                name: { 
+                  type: 'text',
+                  fields: { keyword: { type: 'keyword' } }
+                },
+                location: { type: 'geo_point' },
+                city: {
+                  properties: {
+                    name: { type: 'keyword' },
+                    state_province: { type: 'keyword' },
+                    country: { type: 'keyword' }
                   }
                 }
-              },
-              artists: {
-                type: 'nested',
-                properties: {
-                  id: { type: 'integer' },
-                  name: { 
-                    type: 'text',
-                    fields: { keyword: { type: 'keyword' } }
-                  },
-                  genres: { type: 'keyword' }
-                }
-              },
-              created_at: { type: 'date' }
-            }
-          },
-          settings: {
-            number_of_shards: 1,
-            number_of_replicas: 0
+              }
+            },
+            artists: {
+              type: 'nested',
+              properties: {
+                id: { type: 'integer' },
+                name: { 
+                  type: 'text',
+                  fields: { keyword: { type: 'keyword' } }
+                },
+                genres: { type: 'keyword' }
+              }
+            },
+            created_at: { type: 'date' }
           }
+        },
+        settings: {
+          number_of_shards: 1,
+          number_of_replicas: 0
         }
       });
     }
@@ -324,7 +318,7 @@ export class ElasticsearchService {
     await this.client.index({
       index: INDICES.VENUES,
       id: venue.id.toString(),
-      body: document
+      document: document
     });
   }
 
@@ -344,7 +338,7 @@ export class ElasticsearchService {
     await this.client.index({
       index: INDICES.ARTISTS,
       id: artist.id.toString(),
-      body: document
+      document: document
     });
   }
 
@@ -382,7 +376,7 @@ export class ElasticsearchService {
     await this.client.index({
       index: INDICES.EVENTS,
       id: event.id.toString(),
-      body: document
+      document: document
     });
   }
 
@@ -467,34 +461,34 @@ export class ElasticsearchService {
     const [venueResults, artistResults, eventResults] = await Promise.all([
       this.client.search({ 
         index: INDICES.VENUES, 
-        body: cachedVenueQuery 
+        ...cachedVenueQuery 
       }),
       this.client.search({ 
         index: INDICES.ARTISTS, 
-        body: cachedArtistQuery 
+        ...cachedArtistQuery 
       }),
       this.client.search({ 
         index: INDICES.EVENTS, 
-        body: cachedEventQuery 
+        ...cachedEventQuery 
       })
     ]);
 
     return {
       venues: {
-        total: venueResults.body?.hits?.total?.value || 0,
-        hits: venueResults.body?.hits?.hits || []
+        total: venueResults.hits?.total?.value || 0,
+        hits: venueResults.hits?.hits || []
       },
       artists: {
-        total: artistResults.body?.hits?.total?.value || 0,
-        hits: artistResults.body?.hits?.hits || []
+        total: artistResults.hits?.total?.value || 0,
+        hits: artistResults.hits?.hits || []
       },
       events: {
-        total: eventResults.body?.hits?.total?.value || 0,
-        hits: eventResults.body?.hits?.hits || []
+        total: eventResults.hits?.total?.value || 0,
+        hits: eventResults.hits?.hits || []
       },
-      total: (venueResults.body?.hits?.total?.value || 0) + 
-             (artistResults.body?.hits?.total?.value || 0) + 
-             (eventResults.body?.hits?.total?.value || 0)
+      total: (venueResults.hits?.total?.value || 0) + 
+             (artistResults.hits?.total?.value || 0) + 
+             (eventResults.hits?.total?.value || 0)
     };
   }
 
