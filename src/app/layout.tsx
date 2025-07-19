@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { headers } from "next/headers";
 import { GenreProvider } from "@/lib/context/genre-context";
+import { AuthProvider } from "@/lib/context/auth-context";
 import ResponsiveNavbar from "@/components/navigation/ResponsiveNavbar";
 import "./globals.css";
 
@@ -86,13 +87,13 @@ export const viewport: Viewport = {
   maximumScale: 5,
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   // Get genre from request headers (set by middleware)
-  const headersList = headers();
+  const headersList = await headers();
   const genreFilter = headersList.get("x-genre-filter");
   
   // Update metadata based on genre
@@ -126,37 +127,39 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <GenreProvider initialGenre={genreFilter}>
-          {genreFilter && (
-            <div className="bg-black text-white text-center py-1 text-sm">
-              Browsing {genreFilter.toUpperCase()} music venues and events
+        <AuthProvider>
+          <GenreProvider initialGenre={genreFilter}>
+            {genreFilter && (
+              <div className="bg-black text-white text-center py-1 text-sm">
+                Browsing {genreFilter.toUpperCase()} music venues and events
+              </div>
+            )}
+            <ResponsiveNavbar />
+            <div className="pt-16">
+              {children}
             </div>
-          )}
-          <ResponsiveNavbar />
-          <div className="pt-16">
-            {children}
-          </div>
-          
-          {/* Structured data for organization */}
-          <script
-            type="application/ld+json"
-            dangerouslySetInnerHTML={{
-              __html: JSON.stringify({
-                "@context": "https://schema.org",
-                "@type": "Organization",
-                "name": "Venue Explorer",
-                "url": process.env.NEXT_PUBLIC_BASE_URL || "https://venue-explorer.com",
-                "logo": `${process.env.NEXT_PUBLIC_BASE_URL || "https://venue-explorer.com"}/logo.png`,
-                "description": "Discover music venues, shows, and artists across Washington, Oregon, Idaho, and British Columbia",
-                "sameAs": [
-                  "https://twitter.com/venueexplorer",
-                  "https://facebook.com/venueexplorer",
-                  "https://instagram.com/venueexplorer"
-                ]
-              })
-            }}
-          />
-        </GenreProvider>
+          </GenreProvider>
+        </AuthProvider>
+        
+        {/* Structured data for organization */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Organization",
+              "name": "Venue Explorer",
+              "url": process.env.NEXT_PUBLIC_BASE_URL || "https://venue-explorer.com",
+              "logo": `${process.env.NEXT_PUBLIC_BASE_URL || "https://venue-explorer.com"}/logo.png`,
+              "description": "Discover music venues, shows, and artists across Washington, Oregon, Idaho, and British Columbia",
+              "sameAs": [
+                "https://twitter.com/venueexplorer",
+                "https://facebook.com/venueexplorer",
+                "https://instagram.com/venueexplorer"
+              ]
+            })
+          }}
+        />
       </body>
     </html>
   );
