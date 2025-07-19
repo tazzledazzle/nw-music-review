@@ -94,3 +94,7 @@ venue-explorer/
 - **Database**: PostgreSQL with PostGIS extension
 - **Migrations**: node-pg-migrate
 - **Styling**: TailwindCSS
+
+----
+
+
